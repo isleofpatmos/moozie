@@ -1,0 +1,37 @@
+{
+  "name": "Moozie Player",
+  "short_name": "Moozie",
+  "description": "A beautiful client-side offline music player for Chromebook.",
+  "version": "1.0.0",
+
+  "start_url": "./",
+  "scope": "./",
+
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+
+  "orientation": "landscape",
+
+  "background_color": "#080a0f",
+  "theme_color": "#090b10",
+
+  "prefer_related_applications": false,
+
+  "categories": [
+    "music",
+    "entertainment",
+    "utilities"
+  ],
+
+  "icons": [
+    {
+      "src": "music-player.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

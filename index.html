@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Chromebook / PWA viewport configuration -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
+  <meta
+    name="description"
+    content="A beautiful offline music player for Chromebook."
+  />
+
+  <!-- PWA metadata -->
+  <meta name="theme-color" content="#090b10" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Moozie Player" />
+
+  <!-- App icons -->
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="music-player.svg"
+  />
+  <link
+    rel="apple-touch-icon"
+    href="music-player.svg"
+  />
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json" />
+
+  <title>Moozie Player</title>
+
+  <style>
+    /* ================================================================
+       OFFLINE MUSIC PLAYER
+       Global design system
+       ================================================================ */
+
+    :root {
+      --bg: #080a0f;
+      --bg-soft: #0d1017;
+      --panel: #10141c;
+      --panel-2: #131821;
+      --panel-hover: #181e28;
+
+      --border: rgba(255, 255, 255, 0.075);
+      --border-strong: rgba(255, 255, 255, 0.12);
+
+      --text: #f4f7fb;
+      --text-secondary: #9ca6b5;
+      --text-muted: #626c7b;
+
+      --accent: #7c6cff;
+      --accent-bright: #9689ff;
+      --accent-soft: rgba(124, 108, 255, 0.14);
+      --accent-glow: rgba(124, 108, 255, 0.28);
+
+      --success: #43d49a;
+      --warning: #f3bd61;
+      --danger: #ff6b7a;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+
+      --sidebar-width: 20vw;
+      --sidebar-min-width: 250px;
+      --sidebar-max-width: 360px;
+
+      --bottom-bar-height: 82px;
+
+      --transition-fast: 160ms ease;
+      --transition-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ================================================================
+       RESET
+       ================================================================ */
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      color-scheme: dark;
+      background: var(--bg);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      overflow: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(
+          circle at 50% 15%,
+          rgba(124, 108, 255, 0.055),
+          transparent 32%
+        ),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      color: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    svg {
+      display: block;
+      flex-shrink: 0;
+    }
+
+    /* ================================================================
+       SCROLLBARS
+       ================================================================ */
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    /* ================================================================
+       APP SHELL
+       ================================================================ */
+
+    .app {
+      position: relative;
+      display: grid;
+      grid-template-columns:
+        minmax(var(--sidebar-min-width), var(--sidebar-width))
+        minmax(0, 1fr)
+        minmax(var(--sidebar-min-width), var(--sidebar-width));
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    /* ================================================================
+       COMMON PANEL STYLES
+       ================================================================ */
+
+    .panel {
+      position: relative;
+      min-width: 0;
+      height: calc(100vh - var(--bottom-bar-height));
+      overflow: hidden;
+      background: rgba(12, 15, 21, 0.92);
+    }
+
+    .left-panel {
+      border-right: 1px solid var(--border);
+    }
+
+    .right-panel {
+      border-left: 1px solid var(--border);
+    }
+
+    .panel-inner {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+    }
+
+    /* ================================================================
+       PANEL HEADER
+       ================================================================ */
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 68px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title-group {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 11px;
+      color: #ffffff;
+      background: transparent;
+      cursor: pointer;
+      transition:
+        background var(--transition-fast),
+        transform var(--transition-fast);
+    }
+
+    .brand-mark:hover {
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .brand-mark:active {
+      transform: scale(0.94);
+    }
+
+    .brand-mark:focus-visible {
+      outline: 2px solid var(--accent-bright);
+      outline-offset: 2px;
+    }
+
+    .brand-mark img {
+      width: 26px;
+      height: 26px;
+      display: block;
+      border-radius: 8px;
+    }
+
+    .panel-heading {
+      min-width: 0;
+    }
+
+    .panel-heading h1,
+    .panel-heading h2,
+    .panel-heading p {
+      margin: 0;
+    }
+
+    .panel-heading h1,
+    .panel-heading h2 {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panel-heading p {
+      margin-top: 3px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* ================================================================
+       ICON BUTTONS
+       ================================================================ */
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      flex-shrink: 0;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      color: var(--text-secondary);
+      background: transparent;
+      cursor: pointer;
+      transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+    }
+
+    .icon-button:hover {
+      color: var(--text);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .icon-button:active {
+      transform: scale(0.94);
+    }
+
+    /* ================================================================
+       PLAYLIST
+       ================================================================ */
+
+    .playlist-section {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .playlist-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 13px 18px 10px;
+    }
+
+    .playlist-count {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .playlist {
+      flex: 1;
+      min-height: 0;
+      padding: 4px 9px 14px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    /* Each track will be generated by app.js */
+    .track-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      min-height: 58px;
+      margin-bottom: 3px;
+      padding: 8px 9px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      color: var(--text-secondary);
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+    }
+
+    .track-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.045);
+      border-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .track-item:active {
+      transform: scale(0.992);
+    }
+
+    .track-item.is-active {
+      color: var(--text);
+      border-color: rgba(124, 108, 255, 0.18);
+      background:
+        linear-gradient(
+          90deg,
+          rgba(124, 108, 255, 0.13),
+          rgba(124, 108, 255, 0.055)
+        );
+    }
+
+    .track-item.is-active::before {
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      left: -1px;
+      width: 2px;
+      border-radius: 0 3px 3px 0;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+      content: "";
+    }
+
+    .track-art {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      overflow: hidden;
+      border-radius: 9px;
+      color: rgba(255, 255, 255, 0.54);
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.085),
+          rgba(255, 255, 255, 0.025)
+        );
+    }
+
+    .track-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .track-name {
+      display: block;
+      overflow: hidden;
+      color: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .track-artist {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.25;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .track-duration {
+      color: var(--text-muted);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Empty playlist state */
+    .empty-playlist {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      text-align: center;
+    }
+
+    .empty-state {
+      max-width: 250px;
+    }
+
+    .empty-icon {
+      display: grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 16px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .empty-state h3 {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .empty-state p {
+      margin: 7px 0 0;
+      color: var(--text-muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    /* ================================================================
+       CENTER / NOW PLAYING
+       ================================================================ */
+
+    .main-panel {
+      min-width: 0;
+      background:
+        radial-gradient(
+          circle at 50% 38%,
+          rgba(124, 108, 255, 0.085),
+          transparent 38%
+        ),
+        linear-gradient(
+          180deg,
+          rgba(16, 20, 28, 0.48),
+          rgba(8, 10, 15, 0.82)
+        );
+    }
+
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      padding:
+        40px
+        min(7vw, 84px)
+        calc(var(--bottom-bar-height) + 24px);
+      overflow: hidden;
+    }
+
+    .now-playing-context {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .playing-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    /* ================================================================
+       ALBUM ART / VINYL PLACEHOLDER
+       ================================================================ */
+
+    .album-art-container {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: min(42vh, 440px);
+      aspect-ratio: 1;
+      margin-bottom: 30px;
+    }
+
+    .album-glow {
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle,
+        rgba(124, 108, 255, 0.22),
+        transparent 68%
+      );
+      filter: blur(30px);
+      opacity: 0.75;
+      transform: scale(1.04);
+    }
+
+    .album-art {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 26px;
+      background:
+        radial-gradient(
+          circle at 32% 28%,
+          rgba(255, 255, 255, 0.22),
+          transparent 18%
+        ),
+        radial-gradient(
+          circle at 70% 68%,
+          rgba(124, 108, 255, 0.32),
+          transparent 32%
+        ),
+        linear-gradient(
+          135deg,
+          #222938,
+          #121722 50%,
+          #0e1119
+        );
+      box-shadow:
+        0 30px 70px rgba(0, 0, 0, 0.5),
+        inset 0 1px rgba(255, 255, 255, 0.1);
+      isolation: isolate;
+    }
+
+    .album-art::before,
+    .album-art::after {
+      position: absolute;
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+    }
+
+    .album-art::before {
+      width: 74%;
+      height: 74%;
+      border: 1px solid rgba(255, 255, 255, 0.065);
+      box-shadow:
+        0 0 0 18px rgba(255, 255, 255, 0.018),
+        0 0 0 42px rgba(255, 255, 255, 0.012);
+    }
+
+    .album-art::after {
+      width: 9px;
+      height: 9px;
+      background: rgba(255, 255, 255, 0.65);
+      box-shadow:
+        0 0 0 9px rgba(255, 255, 255, 0.035),
+        0 0 25px rgba(124, 108, 255, 0.5);
+    }
+
+    .album-wave {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      width: 66%;
+      height: 90px;
+      opacity: 0.64;
+      transform: rotate(-18deg);
+    }
+
+    .album-wave span {
+      display: block;
+      width: 4px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.8);
+      animation: album-wave-pulse 1.7s ease-in-out infinite;
+      animation-play-state: paused;
+    }
+
+    .album-art.is-playing .album-wave span {
+      animation-play-state: running;
+    }
+
+    .album-wave span:nth-child(1) { height: 20px; animation-delay: -0.1s; }
+    .album-wave span:nth-child(2) { height: 38px; animation-delay: -0.2s; }
+    .album-wave span:nth-child(3) { height: 52px; animation-delay: -0.3s; }
+    .album-wave span:nth-child(4) { height: 70px; animation-delay: -0.4s; }
+    .album-wave span:nth-child(5) { height: 48px; animation-delay: -0.5s; }
+    .album-wave span:nth-child(6) { height: 76px; animation-delay: -0.6s; }
+    .album-wave span:nth-child(7) { height: 56px; animation-delay: -0.7s; }
+    .album-wave span:nth-child(8) { height: 32px; animation-delay: -0.8s; }
+    .album-wave span:nth-child(9) { height: 62px; animation-delay: -0.9s; }
+    .album-wave span:nth-child(10) { height: 42px; animation-delay: -1s; }
+    .album-wave span:nth-child(11) { height: 24px; animation-delay: -1.1s; }
+
+    @keyframes album-wave-pulse {
+      0%,
+      100% {
+        transform: scaleY(0.62);
+        opacity: 0.48;
+      }
+
+      50% {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+    }
+
+    /* ================================================================
+       TRACK INFORMATION
+       ================================================================ */
+
+    .track-meta {
+      width: min(680px, 100%);
+      text-align: center;
+    }
+
+    .track-meta-title {
+      margin: 0;
+      overflow: hidden;
+      color: var(--text);
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 750;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .track-meta-artist {
+      margin: 8px 0 0;
+      overflow: hidden;
+      color: var(--text-secondary);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ================================================================
+       PROGRESS
+       ================================================================ */
+
+    .progress-area {
+      width: min(680px, 100%);
+      margin-top: 28px;
+    }
+
+    .progress-track {
+      position: relative;
+      width: 100%;
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.095);
+      cursor: pointer;
+    }
+
+    .progress-track:hover {
+      height: 7px;
+    }
+
+    .progress-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background:
+        linear-gradient(
+          90deg,
+          var(--accent),
+          var(--accent-bright)
+        );
+      box-shadow: 0 0 12px rgba(124, 108, 255, 0.32);
+      transition: width 80ms linear;
+      pointer-events: none;
+    }
+
+    .progress-times {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 9px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ================================================================
+       RIGHT SETTINGS PANEL
+       ================================================================ */
+
+    .settings-content {
+      flex: 1;
+      min-height: 0;
+      padding: 22px 18px 28px;
+      overflow-y: auto;
+    }
+
+    .settings-section {
+      margin-bottom: 26px;
+    }
+
+    .settings-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-label {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Folder button */
+
+    .folder-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: 100%;
+      min-height: 44px;
+      padding: 11px 14px;
+      border: 1px solid rgba(124, 108, 255, 0.26);
+      border-radius: var(--radius-md);
+      color: #ffffff;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(124, 108, 255, 0.22),
+          rgba(124, 108, 255, 0.09)
+        );
+      box-shadow:
+        inset 0 1px rgba(255, 255, 255, 0.08),
+        0 8px 25px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      transition:
+        background var(--transition-normal),
+        border-color var(--transition-normal),
+        transform var(--transition-fast),
+        box-shadow var(--transition-normal);
+    }
+
+    .folder-button:hover {
+      border-color: rgba(124, 108, 255, 0.48);
+      background:
+        linear-gradient(
+          135deg,
+          rgba(124, 108, 255, 0.3),
+          rgba(124, 108, 255, 0.12)
+        );
+      box-shadow:
+        inset 0 1px rgba(255, 255, 255, 0.1),
+        0 12px 32px rgba(124, 108, 255, 0.12);
+    }
+
+    .folder-button:active {
+      transform: scale(0.985);
+    }
+
+    /* ================================================================
+       EXTENSION CHECKLIST
+       ================================================================ */
+
+    .extension-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .extension-option {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 8px 9px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.02);
+      cursor: pointer;
+      transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast);
+    }
+
+    .extension-option:hover {
+      border-color: var(--border-strong);
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .extension-option input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .extension-option span {
+      overflow: hidden;
+      color: var(--text-secondary);
+      font-size: 10px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ================================================================
+       SETTINGS RESET
+       ================================================================ */
+
+    .reset-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 38px;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.025);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 650;
+      transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast);
+    }
+
+    .reset-button:hover {
+      color: var(--danger);
+      border-color: rgba(255, 107, 122, 0.2);
+      background: rgba(255, 107, 122, 0.045);
+    }
+
+    /* ================================================================
+       BOTTOM CONTROL BAR
+       ================================================================ */
+
+    .bottom-bar {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      height: var(--bottom-bar-height);
+      padding:
+        0
+        18px
+        env(safe-area-inset-bottom, 0);
+      border-top: 1px solid var(--border);
+      background:
+        linear-gradient(
+          180deg,
+          rgba(13, 16, 23, 0.88),
+          rgba(9, 11, 16, 0.97)
+        );
+      box-shadow: 0 -12px 35px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Left controls */
+
+    .bottom-left,
+    .bottom-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .bottom-right {
+      justify-content: flex-end;
+    }
+
+    .mode-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      height: 34px;
+      padding: 0 9px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      color: var(--text-muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 650;
+      transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast);
+    }
+
+    .mode-button:hover {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .mode-button.is-active {
+      color: var(--accent-bright);
+      border-color: rgba(124, 108, 255, 0.18);
+      background: var(--accent-soft);
+    }
+
+    .mode-button .mode-label {
+      display: inline-block;
+    }
+
+    /* Center playback controls */
+
+    .transport-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .transport-button {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      color: var(--text-secondary);
+      background: transparent;
+      cursor: pointer;
+      transition:
+        background var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+    }
+
+    .transport-button:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.065);
+    }
+
+    .transport-button:active {
+      transform: scale(0.9);
+    }
+
+    .play-button {
+      width: 48px;
+      height: 48px;
+      color: #ffffff;
+      background:
+        linear-gradient(
+          145deg,
+          var(--accent-bright),
+          var(--accent)
+        );
+      box-shadow:
+        0 8px 25px rgba(124, 108, 255, 0.28),
+        inset 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    .play-button:hover {
+      color: #ffffff;
+      background:
+        linear-gradient(
+          145deg,
+          #a296ff,
+          #7565f3
+        );
+      box-shadow:
+        0 10px 30px rgba(124, 108, 255, 0.36),
+        inset 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    /* Volume */
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 130px;
+      max-width: 190px;
+    }
+
+    .volume-button {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      background: transparent;
+      cursor: pointer;
+      transition:
+        color var(--transition-fast),
+        background var(--transition-fast);
+    }
+
+    .volume-button:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .volume-slider {
+      width: 100%;
+      height: 4px;
+      appearance: none;
+      -webkit-appearance: none;
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+      background:
+        linear-gradient(
+          to right,
+          var(--accent) 0%,
+          var(--accent) var(--volume-progress, 70%),
+          rgba(255, 255, 255, 0.11) var(--volume-progress, 70%),
+          rgba(255, 255, 255, 0.11) 100%
+        );
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      width: 11px;
+      height: 11px;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 7px rgba(0, 0, 0, 0.4);
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 11px;
+      height: 11px;
+      border: 0;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 7px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ================================================================
+       COLLAPSED PANEL STATES
+       Controlled by app.js via classes.
+       ================================================================ */
+
+    .app.left-collapsed {
+      grid-template-columns: 62px minmax(0, 1fr) minmax(var(--sidebar-min-width), var(--sidebar-width));
+    }
+
+    .app.right-collapsed {
+      grid-template-columns:
+        minmax(var(--sidebar-min-width), var(--sidebar-width))
+        minmax(0, 1fr)
+        62px;
+    }
+
+    .app.left-collapsed.right-collapsed {
+      grid-template-columns: 62px minmax(0, 1fr) 62px;
+    }
+
+    .left-panel,
+    .right-panel {
+      transition:
+        width var(--transition-smooth),
+        opacity var(--transition-smooth),
+        transform var(--transition-smooth);
+    }
+
+    .app.left-collapsed .left-panel .panel-heading,
+    .app.left-collapsed .left-panel .playlist-toolbar,
+    .app.left-collapsed .left-panel .track-info,
+    .app.left-collapsed .left-panel .track-duration,
+    .app.left-collapsed .left-panel .empty-playlist {
+      display: none;
+    }
+
+    .app.left-collapsed .left-panel .panel-header {
+      justify-content: center;
+      padding-inline: 12px;
+    }
+
+    /*
+      When collapsed, the separate collapse/expand chevron is hidden.
+      The brand mark (music icon) becomes the only control and serves
+      to expand the panel again.
+    */
+    .app.left-collapsed .left-panel #toggleLeftPanel {
+      display: none;
+    }
+
+    .app.left-collapsed .left-panel .panel-title-group {
+      display: contents;
+    }
+
+    .app.left-collapsed .left-panel .brand-mark {
+      margin: auto;
+    }
+
+    .app.left-collapsed .left-panel .playlist {
+      padding-inline: 9px;
+    }
+
+    .app.left-collapsed .left-panel .track-item {
+      justify-content: center;
+      padding-inline: 0;
+    }
+
+    .app.left-collapsed .left-panel .track-art {
+      width: 38px;
+      height: 38px;
+    }
+
+    .app.right-collapsed .right-panel .panel-heading,
+    .app.right-collapsed .right-panel .settings-content {
+      display: none;
+    }
+
+    .app.right-collapsed .right-panel .panel-header {
+      justify-content: center;
+      padding-inline: 12px;
+    }
+
+    /* ================================================================
+       OFFLINE / PERMISSION BANNER
+       ================================================================ */
+
+    .system-banner {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      max-width: min(520px, calc(100vw - 32px));
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      color: var(--text-secondary);
+      background: rgba(16, 20, 28, 0.94);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -12px);
+      transition:
+        opacity var(--transition-normal),
+        transform var(--transition-normal);
+    }
+
+    .system-banner.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+    }
+
+    .system-banner-dot {
+      width: 7px;
+      height: 7px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 10px rgba(67, 212, 154, 0.65);
+    }
+
+    .system-banner.is-warning .system-banner-dot {
+      background: var(--warning);
+      box-shadow: 0 0 10px rgba(243, 189, 97, 0.55);
+    }
+
+    .system-banner.is-error .system-banner-dot {
+      background: var(--danger);
+      box-shadow: 0 0 10px rgba(255, 107, 122, 0.55);
+    }
+
+    /* ================================================================
+       RESPONSIVE BEHAVIOUR
+       Optimized for Chromebook sizes.
+       ================================================================ */
+
+    @media (max-width: 1050px) {
+      :root {
+        --sidebar-width: 23vw;
+        --sidebar-min-width: 220px;
+      }
+
+      .main-content {
+        padding-inline: 45px;
+      }
+
+      .album-art-container {
+        width: min(38vh, 330px);
+      }
+
+      .mode-button .mode-label {
+        display: none;
+      }
+
+      .mode-button {
+        width: 34px;
+        padding: 0;
+      }
+    }
+
+    @media (max-width: 820px) {
+      :root {
+        --sidebar-width: 28vw;
+        --sidebar-min-width: 190px;
+      }
+
+      .app {
+        grid-template-columns:
+          minmax(0, var(--sidebar-width))
+          minmax(0, 1fr)
+          minmax(0, var(--sidebar-width));
+      }
+
+      .panel-heading p {
+        display: none;
+      }
+
+      .main-content {
+        padding-inline: 28px;
+      }
+
+      .album-art-container {
+        width: min(34vh, 280px);
+        margin-bottom: 24px;
+      }
+
+      .track-meta-title {
+        font-size: 24px;
+      }
+
+      .volume-control {
+        min-width: 100px;
+      }
+    }
+
+    /*
+      At very small Chromebook/browser widths, panels can become
+      uncomfortable. The app automatically keeps the central player
+      usable and encourages panel collapse.
+    */
+    @media (max-width: 700px) {
+      .left-panel,
+      .right-panel {
+        position: absolute;
+        top: 0;
+        bottom: var(--bottom-bar-height);
+        z-index: 90;
+        width: min(82vw, 320px);
+        height: auto;
+        box-shadow: 20px 0 45px rgba(0, 0, 0, 0.35);
+      }
+
+      .left-panel {
+        left: 0;
+      }
+
+      .right-panel {
+        right: 0;
+      }
+
+      .app {
+        display: block;
+      }
+
+      .main-panel {
+        width: 100%;
+        height: 100vh;
+      }
+
+      .main-content {
+        padding:
+          28px
+          20px
+          calc(var(--bottom-bar-height) + 22px);
+      }
+
+      .album-art-container {
+        width: min(44vh, 300px);
+      }
+
+      .bottom-bar {
+        grid-template-columns: auto 1fr auto;
+        padding-inline: 10px;
+      }
+
+      .bottom-left {
+        gap: 3px;
+      }
+
+      .bottom-right {
+        gap: 3px;
+      }
+
+      .transport-controls {
+        gap: 6px;
+      }
+
+      .volume-control {
+        min-width: 82px;
+        max-width: 110px;
+      }
+    }
+
+    /* ================================================================
+       REDUCED MOTION
+       ================================================================ */
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
+    /* ================================================================
+       UTILITY
+       ================================================================ */
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ==============================================================
+       APP
+       ============================================================== -->
+
+  <div
+    id="app"
+    class="app"
+    aria-label="Moozie Player"
+  >
+
+    <!-- ============================================================
+         LEFT PANEL — PLAYLIST
+         ============================================================ -->
+
+    <aside
+      id="leftPanel"
+      class="panel left-panel"
+      aria-label="Playlist"
+    >
+      <div class="panel-inner">
+
+        <!-- Playlist header -->
+        <header class="panel-header">
+          <div class="panel-title-group">
+            <!--
+              The brand mark doubles as the expand control when the
+              playlist panel is collapsed. Clicking it toggles the panel.
+            -->
+            <button
+              id="brandMarkToggle"
+              class="brand-mark"
+              type="button"
+              aria-label="Collapse playlist"
+              title="Collapse playlist"
+              data-action="toggle-left-panel"
+            >
+              <img
+                src="music-player.svg"
+                width="20"
+                height="20"
+                alt=""
+                aria-hidden="true"
+              />
+            </button>
+
+            <div class="panel-heading">
+              <h1>Moozie Player</h1>
+              <p>Your local library</p>
+            </div>
+          </div>
+
+          <!-- Collapse / expand playlist -->
+          <button
+            id="toggleLeftPanel"
+            class="icon-button"
+            type="button"
+            aria-label="Collapse playlist"
+            title="Collapse playlist"
+            data-action="toggle-left-panel"
+          >
+            <svg
+              id="leftPanelToggleIcon"
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+        </header>
+
+        <section class="playlist-section">
+
+          <div class="playlist-toolbar">
+            <span
+              id="playlistCount"
+              class="playlist-count"
+            >
+              0 songs
+            </span>
+
+            <button
+              id="sortPlaylistButton"
+              class="icon-button"
+              type="button"
+              aria-label="Sort playlist"
+              title="Sort playlist"
+              data-action="sort-playlist"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M8 6h13" />
+                <path d="M8 12h9" />
+                <path d="M8 18h5" />
+                <path d="M3 6h.01" />
+                <path d="M3 12h.01" />
+                <path d="M3 18h.01" />
+              </svg>
+            </button>
+          </div>
+
+          <!--
+            app.js will dynamically populate this element with
+            .track-item buttons.
+          -->
+          <div
+            id="playlist"
+            class="playlist"
+            role="list"
+            aria-label="Songs"
+          >
+            <!-- Empty state shown until a folder is selected -->
+            <div
+              id="playlistEmptyState"
+              class="empty-playlist"
+            >
+              <div class="empty-state">
+
+                <div class="empty-icon" aria-hidden="true">
+                  <svg
+                    width="23"
+                    height="23"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M9 18V5l10-2v13" />
+                    <circle cx="6" cy="18" r="3" />
+                    <circle cx="16" cy="16" r="3" />
+                  </svg>
+                </div>
+
+                <h3>Your library is empty</h3>
+
+                <p>
+                  Select a local music folder to scan your songs and
+                  build your offline library.
+                </p>
+
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- ============================================================
+         CENTER PANEL — NOW PLAYING
+         ============================================================ -->
+
+    <main
+      id="mainPanel"
+      class="panel main-panel"
+      aria-label="Now playing"
+    >
+      <div class="main-content">
+
+        <div class="now-playing-context">
+          <span class="playing-dot" aria-hidden="true"></span>
+          <span id="playingContext">Not playing</span>
+        </div>
+
+        <!-- Album art / waveform visual -->
+        <div
+          id="albumArtContainer"
+          class="album-art-container"
+        >
+          <div
+            class="album-glow"
+            aria-hidden="true"
+          ></div>
+
+          <div
+            id="albumArt"
+            class="album-art"
+            role="img"
+            aria-label="Album artwork placeholder"
+          >
+            <div
+              class="album-wave"
+              aria-hidden="true"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track information -->
+        <section
+          class="track-meta"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <h2
+            id="currentTrackTitle"
+            class="track-meta-title"
+          >
+            No track selected
+          </h2>
+
+          <p
+            id="currentTrackArtist"
+            class="track-meta-artist"
+          >
+            Select a folder to begin
+          </p>
+        </section>
+
+        <!-- Progress -->
+        <section
+          class="progress-area"
+          aria-label="Track progress"
+        >
+          <div
+            id="progressTrack"
+            class="progress-track"
+            role="slider"
+            tabindex="0"
+            aria-label="Track progress"
+            aria-valuemin="0"
+            aria-valuemax="0"
+            aria-valuenow="0"
+            aria-valuetext="0:00"
+          >
+            <div
+              id="progressFill"
+              class="progress-fill"
+            ></div>
+          </div>
+
+          <div class="progress-times">
+            <span id="currentTime">0:00</span>
+            <span id="remainingTime">-0:00</span>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ============================================================
+         RIGHT PANEL — SETTINGS
+         ============================================================ -->
+
+    <aside
+      id="rightPanel"
+      class="panel right-panel"
+      aria-label="Music settings"
+    >
+      <div class="panel-inner">
+
+        <header class="panel-header">
+
+          <div class="panel-title-group">
+
+            <div class="icon-button" aria-hidden="true">
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+                <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06-1.7 1.7-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.08 1.65V20h-2.4v-.03a1.8 1.8 0 0 0-1.08-1.65 1.8 1.8 0 0 0-1.98.36l-.06.06-1.7-1.7.06-.06A1.8 1.8 0 0 0 8.2 15a1.8 1.8 0 0 0-1.65-1.08H6.5v-2.4h.05A1.8 1.8 0 0 0 8.2 10a1.8 1.8 0 0 0-.36-1.98l-.06-.06 1.7-1.7.06.06a1.8 1.8 0 0 0 1.98.36 1.8 1.8 0 0 0 1.08-1.65V5h2.4v.03a1.8 1.8 0 0 0 1.08 1.65 1.8 1.8 0 0 0 1.98-.36l.06-.06 1.7 1.7-.06.06A1.8 1.8 0 0 0 19.4 10c.27.66.91 1.08 1.65 1.08h.05v2.4H21a1.8 1.8 0 0 0-1.6 1.52Z" />
+              </svg>
+            </div>
+
+            <div class="panel-heading">
+              <h2>Settings</h2>
+              <p>Library & playback</p>
+            </div>
+
+          </div>
+
+          <!-- Collapse / expand settings -->
+          <button
+            id="toggleRightPanel"
+            class="icon-button"
+            type="button"
+            aria-label="Collapse settings"
+            title="Collapse settings"
+            data-action="toggle-right-panel"
+          >
+            <svg
+              id="rightPanelToggleIcon"
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+
+        </header>
+
+        <div class="settings-content">
+
+          <!-- ======================================================
+               MUSIC FOLDER
+               ====================================================== -->
+
+          <section class="settings-section">
+
+            <span class="settings-label">
+              Music Library
+            </span>
+
+            <button
+              id="selectMusicFolder"
+              class="folder-button"
+              type="button"
+              data-action="select-folder"
+            >
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5v-10Z" />
+                <path d="M12 11v5" />
+                <path d="m10 13 2-2 2 2" />
+              </svg>
+
+              <span>Select Music Folder</span>
+            </button>
+
+          </section>
+
+          <!-- ======================================================
+               FILE EXTENSIONS
+               ====================================================== -->
+
+          <section class="settings-section">
+
+            <span class="settings-label">
+              File Types
+            </span>
+
+            <div class="extension-list">
+
+              <label class="extension-option">
+                <input
+                  id="extensionMp3"
+                  type="checkbox"
+                  name="extension"
+                  value="mp3"
+                  checked
+                />
+                <span>MP3</span>
+              </label>
+
+              <label class="extension-option">
+                <input
+                  id="extensionWav"
+                  type="checkbox"
+                  name="extension"
+                  value="wav"
+                  checked
+                />
+                <span>WAV</span>
+              </label>
+
+              <label class="extension-option">
+                <input
+                  id="extensionM4a"
+                  type="checkbox"
+                  name="extension"
+                  value="m4a"
+                  checked
+                />
+                <span>M4A</span>
+              </label>
+
+              <label class="extension-option">
+                <input
+                  id="extensionFlac"
+                  type="checkbox"
+                  name="extension"
+                  value="flac"
+                  checked
+                />
+                <span>FLAC</span>
+              </label>
+
+              <label class="extension-option">
+                <input
+                  id="extensionOgg"
+                  type="checkbox"
+                  name="extension"
+                  value="ogg"
+                  checked
+                />
+                <span>OGG</span>
+              </label>
+
+            </div>
+
+          </section>
+
+          <!-- ======================================================
+               RESET
+               ====================================================== -->
+
+          <section class="settings-section">
+
+            <span class="settings-label">
+              App Data
+            </span>
+
+            <button
+              id="resetSettings"
+              class="reset-button"
+              type="button"
+              data-action="reset-settings"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                <path d="M3 4v5h5" />
+              </svg>
+
+              <span>Reset App Settings</span>
+            </button>
+
+          </section>
+
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ==============================================================
+       BOTTOM CONTROL BAR
+       ============================================================== -->
+
+  <footer
+    id="bottomBar"
+    class="bottom-bar"
+    aria-label="Playback controls"
+  >
+
+    <!-- ============================================================
+         LEFT — PLAYBACK MODES
+         ============================================================ -->
+
+    <div class="bottom-left">
+
+      <!-- Shuffle -->
+      <button
+        id="shuffleButton"
+        class="mode-button"
+        type="button"
+        aria-label="Shuffle off"
+        aria-pressed="false"
+        title="Shuffle"
+        data-action="toggle-shuffle"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M16 3h5v5" />
+          <path d="M4 20 21 3" />
+          <path d="M21 16v5h-5" />
+          <path d="m15 15 6 6" />
+          <path d="M4 4l5 5" />
+        </svg>
+
+        <span class="mode-label">
+          Shuffle
+        </span>
+      </button>
+
+      <!-- Repeat cycle:
+           Off → Repeat All → Repeat Single → Off -->
+      <button
+        id="repeatButton"
+        class="mode-button"
+        type="button"
+        aria-label="Repeat off"
+        aria-pressed="false"
+        title="Repeat: Off"
+        data-action="cycle-repeat"
+      >
+        <svg
+          id="repeatIcon"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m17 2 4 4-4 4" />
+          <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+          <path d="m7 22-4-4 4-4" />
+          <path d="M21 13v2a3 3 0 0 1-3 3H3" />
+        </svg>
+
+        <span
+          id="repeatLabel"
+          class="mode-label"
+        >
+          Repeat
+        </span>
+      </button>
+
+    </div>
+
+    <!-- ============================================================
+         CENTER — TRANSPORT CONTROLS
+         ============================================================ -->
+
+    <div class="transport-controls">
+
+      <!-- Previous -->
+      <button
+        id="previousButton"
+        class="transport-button"
+        type="button"
+        aria-label="Previous track"
+        title="Previous track"
+        data-action="previous-track"
+      >
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M6 5.5a1 1 0 0 1 1.53-.85l9.5 6.5a1 1 0 0 1 0 1.7l-9.5 6.5A1 1 0 0 1 6 18.5v-13Z" />
+          <path d="M19 5h2v14h-2z" />
+        </svg>
+      </button>
+
+      <!-- Play / Pause -->
+      <button
+        id="playPauseButton"
+        class="transport-button play-button"
+        type="button"
+        aria-label="Play"
+        title="Play"
+        data-action="toggle-play"
+      >
+        <!-- Play icon -->
+        <svg
+          id="playIcon"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M8 5.2a1 1 0 0 1 1.55-.83l9.48 6.8a1 1 0 0 1 0 1.66l-9.48 6.8A1 1 0 0 1 8 18.8V5.2Z" />
+        </svg>
+
+        <!-- Pause icon -->
+        <svg
+          id="pauseIcon"
+          class="hidden"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <rect x="7" y="5" width="3.5" height="14" rx="1" />
+          <rect x="13.5" y="5" width="3.5" height="14" rx="1" />
+        </svg>
+      </button>
+
+      <!-- Next -->
+      <button
+        id="nextButton"
+        class="transport-button"
+        type="button"
+        aria-label="Next track"
+        title="Next track"
+        data-action="next-track"
+      >
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M18 5.5a1 1 0 0 0-1.53-.85l-9.5 6.5a1 1 0 0 0 0 1.7l9.5 6.5A1 1 0 0 0 18 18.5v-13Z" />
+          <path d="M3 5h2v14H3z" />
+        </svg>
+      </button>
+
+    </div>
+
+    <!-- ============================================================
+         RIGHT — VOLUME
+         ============================================================ -->
+
+    <div class="bottom-right">
+
+      <div class="volume-control">
+
+        <!-- Mute -->
+        <button
+          id="volumeButton"
+          class="volume-button"
+          type="button"
+          aria-label="Mute"
+          title="Mute"
+          data-action="toggle-mute"
+        >
+          <!-- Volume high -->
+          <svg
+            id="volumeHighIcon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+            <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+            <path d="M18 6a8 8 0 0 1 0 12" />
+          </svg>
+
+          <!-- Muted -->
+          <svg
+            id="volumeMutedIcon"
+            class="hidden"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+            <path d="m17 9 4 6" />
+            <path d="m21 9-4 6" />
+          </svg>
+        </button>
+
+        <!-- Volume slider -->
+        <label
+          class="visually-hidden"
+          for="volumeSlider"
+        >
+          Volume
+        </label>
+
+        <input
+          id="volumeSlider"
+          class="volume-slider"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.70"
+          aria-label="Volume"
+        />
+
+      </div>
+
+    </div>
+
+  </footer>
+
+  <!-- ==============================================================
+       SYSTEM STATUS BANNER
+
+       app.js can use this for messages such as:
+       - Folder permission required
+       - Scanning library
+       - Scan complete
+       - Folder is empty
+       - Unsupported browser
+       - Offline mode
+       ============================================================== -->
+
+  <div
+    id="systemBanner"
+    class="system-banner"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
+    <span
+      id="systemBannerDot"
+      class="system-banner-dot"
+      aria-hidden="true"
+    ></span>
+
+    <span id="systemBannerText">
+      Ready
+    </span>
+  </div>
+
+  <!-- ==============================================================
+       HTML5 AUDIO ENGINE
+
+       The audio element is intentionally invisible. app.js will
+       manage its source, playback state, volume, seeking and events.
+       ============================================================== -->
+
+  <audio
+    id="audioPlayer"
+    preload="metadata"
+  ></audio>
+
+  <!-- ==============================================================
+       APPLICATION SCRIPT
+
+       defer ensures the DOM above is available before app.js runs.
+       ============================================================== -->
+
+  <script
+    src="app.js"
+    defer
+  ></script>
+</body>
+</html>
